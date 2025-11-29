@@ -1,146 +1,149 @@
 package controller;
 
-import model.Donor;
+import dao.BloodUnitDAO; // Needed to add stock!
 import dao.DonorDAO;
+import model.BloodUnit;
+import model.Donor;
 import view.DonorRegistrationPage;
 
+import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.List;
+import java.time.ZoneId;
 
-/**
- * Controller class for the Donor Registration Page.
- * This is the "C" in MVC.
- * It acts as the "brain" that connects the View (DonorRegistrationPage)
- * and the DAO (DonorDAO). It handles all user actions and business logic.
- */
 public class DonorController implements ActionListener {
-
-    // --- References to the other layers ---
     private final DonorRegistrationPage view;
     private final DonorDAO dao;
+    private final BloodUnitDAO bloodDAO; // New DAO instance
 
-    /**
-     * Constructor. This is where we "inject" the dependencies (the view and the dao).
-     * This is called "Dependency Injection".
-     *
-     * @param view The DonorRegistrationPage (V)
-     * @param dao  The DonorDAO (DAO)
-     */
     public DonorController(DonorRegistrationPage view, DonorDAO dao) {
         this.view = view;
         this.dao = dao;
+        this.bloodDAO = new BloodUnitDAO(); // Initialize it
 
-        // --- Attach Listeners ---
-        // Tell the controller to "listen" for clicks on the view's buttons.
-        this.view.getSaveButton().addActionListener(this);
-        this.view.getUpdateButton().addActionListener(this);
-        this.view.getDeleteButton().addActionListener(this);
+        view.getSaveButton().addActionListener(this);
+        view.getUpdateButton().addActionListener(this);
+        view.getDeleteButton().addActionListener(this);
+        view.getDonateButton().addActionListener(this); // Listen to new button
 
-        // TODO: We also need to listen for when a user clicks on the JTable
-        // to select a row for updating or deleting.
-        // this.view.getDonorTable().getSelectionModel().addListSelectionListener(e -> populateFormFromTable());
+        view.getDonorTable().getSelectionModel().addListSelectionListener(e -> {
+            if(!e.getValueIsAdjusting()) populateForm();
+        });
 
-        // --- Load Initial Data ---
-        // Load all existing donors into the table when the app starts.
-        loadDonorsIntoTable();
+        loadData();
     }
 
-    /**
-     * This is the main "traffic cop" method.
-     * It's called automatically whenever a button we are "listening" to is clicked.
-     *
-     * @param e The event that occurred (e.g., a button click).
-     */
+    private void loadData() {
+        try { view.refreshTable(dao.getAllDonors()); }
+        catch (SQLException e) { view.showMessage("Error: " + e.getMessage()); }
+    }
+
+    private void populateForm() {
+        int row = view.getDonorTable().getSelectedRow();
+        if (row != -1) {
+            view.getNameField().setText(view.getDonorTable().getValueAt(row, 1).toString());
+            view.getContactField().setText(view.getDonorTable().getValueAt(row, 2).toString());
+            view.getBloodTypeComboBox().setSelectedItem(view.getDonorTable().getValueAt(row, 3).toString());
+        }
+    }
+
     @Override
     public void actionPerformed(ActionEvent e) {
-        // Get the "source" of the action (which button was clicked?)
-        Object source = e.getSource();
-
-        if (source == view.getSaveButton()) {
-            // User clicked "Save"
-            saveNewDonor();
-        } else if (source == view.getUpdateButton()) {
-            // User clicked "Update"
-            // TODO: Implement updateDonor()
-            view.showMessage("Update functionality to be implemented.");
-        } else if (source == view.getDeleteButton()) {
-            // User clicked "Delete"
-            // TODO: Implement deleteDonor()
-            view.showMessage("Delete functionality to be implemented.");
-        }
+        if (e.getSource() == view.getSaveButton()) save();
+        else if (e.getSource() == view.getUpdateButton()) update();
+        else if (e.getSource() == view.getDeleteButton()) delete();
+        else if (e.getSource() == view.getDonateButton()) recordDonation();
     }
 
-    /**
-     * Helper method to fetch all donors from the DAO
-     * and tell the View to display them in the JTable.
-     */
-    private void loadDonorsIntoTable() {
-        try {
-            // 1. Call the DAO (Mechanic)
-            List<Donor> donors = dao.getAllDonors();
-
-            // 2. Tell the View (Service Manager) to update
-            view.refreshTable(donors);
-
-        } catch (SQLException e) {
-            // This is the "Service Manager" catching the "leaking brake line"
-            // and showing a polite message to the "Customer" (View).
-            view.showMessage("Database Error: Could not load donors. " + e.getMessage());
-        }
-    }
-
-    /**
-     * Helper method to handle the "Save" button click.
-     * This contains all our validation logic.
-     */
-    private void saveNewDonor() {
-        // 1. Get Data from the View
-        String name = view.getDonorName().trim();
-        String contact = view.getDonorContact().trim();
-        String bloodType = view.getSelectedBloodType();
-
-        // 2. --- VALIDATION ---
-        // This is where we check our business and technical rules.
-        if (name.isEmpty()) {
-            view.showMessage("Validation Error: Name cannot be empty.");
-            return; // Stop the method
+    // --- NEW: RECORD DONATION ---
+    private void recordDonation() {
+        int row = view.getDonorTable().getSelectedRow();
+        if (row == -1) {
+            view.showMessage("Please select a donor from the table first.");
+            return;
         }
 
-        if (contact.isEmpty()) {
-            view.showMessage("Validation Error: Contact cannot be empty.");
-            return; // Stop the method
-        }
+        // Get Donor Details from Table
+        int donorId = (int) view.getDonorTable().getValueAt(row, 0);
+        String name = (String) view.getDonorTable().getValueAt(row, 1);
+        String bloodType = (String) view.getDonorTable().getValueAt(row, 3);
 
-        if (bloodType.equals("--Select--")) {
-            view.showMessage("Validation Error: Please select a blood type.");
-            return; // Stop the method
-        }
+        int confirm = JOptionPane.showConfirmDialog(view,
+                "Record a donation of 1 Unit (" + bloodType + ") from " + name + "?",
+                "Confirm Donation", JOptionPane.YES_NO_OPTION);
 
-        // (Add more validation here as needed...)
+        if (confirm == JOptionPane.YES_OPTION) {
+            // Auto-create a Blood Unit
+            // Default: 1 unit, Today's date, Expires in 35 days
+            BloodUnit unit = new BloodUnit(
+                    bloodType,
+                    1,
+                    LocalDate.now(),
+                    LocalDate.now().plusDays(35),
+                    donorId
+            );
 
-        // 3. Create the Model
-        // All validation passed, so we "pack" a new Donor object.
-        // We use the "new donor" constructor (no ID).
-        Donor donor = new Donor(name, contact, bloodType, LocalDate.now());
-
-        // 4. Call the DAO (and handle errors)
-        try {
-            boolean success = dao.saveDonor(donor);
-
-            if (success) {
-                // This fulfills the "JOptionPane for success" requirement
-                view.showMessage("Donor saved successfully!");
-                view.clearForm();       // Clear the form for the next entry
-                loadDonorsIntoTable();  // Refresh the table to show the new data
-            } else {
-                view.showMessage("Error: Donor was not saved. (DAO returned false)");
+            try {
+                if (bloodDAO.saveBloodUnit(unit)) {
+                    view.showMessage("Success! Donation added to Blood Stock.");
+                } else {
+                    view.showMessage("Failed to record donation.");
+                }
+            } catch (SQLException ex) {
+                view.showMessage("Database Error: " + ex.getMessage());
             }
-        } catch (SQLException e) {
-            // This fulfills the "JOptionPane for error" requirement
-            view.showMessage("Database Error: Could not save donor. " + e.getMessage());
+        }
+    }
+
+    private boolean validateInput(String name, String contact, String type) {
+        if (name == null || name.trim().isEmpty()) { view.showMessage("Name cannot be empty."); return false; }
+        if (contact == null || contact.trim().isEmpty()) { view.showMessage("Contact cannot be empty."); return false; }
+        if (type.equals("--Select--")) { view.showMessage("Select a Blood Type."); return false; }
+        if (!contact.matches("\\d{10}")) { view.showMessage("Contact must be 10 digits."); return false; }
+        return true;
+    }
+
+    private void save() {
+        String name = view.getDonorName();
+        String contact = view.getDonorContact();
+        String type = view.getSelectedBloodType();
+        if (!validateInput(name, contact, type)) return;
+
+        Donor d = new Donor(name, contact, type, LocalDate.now());
+        try {
+            if(dao.saveDonor(d)) { view.showMessage("Saved!"); view.clearForm(); loadData(); }
+        } catch(SQLException ex) { view.showMessage("Error: " + ex.getMessage()); }
+    }
+
+    private void update() {
+        int row = view.getDonorTable().getSelectedRow();
+        if(row == -1) { view.showMessage("Select a donor."); return; }
+        int id = (int) view.getDonorTable().getValueAt(row, 0);
+        String name = view.getDonorName();
+        String contact = view.getDonorContact();
+        String type = view.getSelectedBloodType();
+
+        LocalDate regDate = (LocalDate) view.getDonorTable().getValueAt(row, 4); // Keep original date
+
+        if (!validateInput(name, contact, type)) return;
+
+        Donor d = new Donor(id, name, contact, type, regDate);
+        try {
+            if(dao.updateDonor(d)) { view.showMessage("Updated!"); view.clearForm(); loadData(); }
+        } catch(SQLException ex) { view.showMessage("Error: " + ex.getMessage()); }
+    }
+
+    private void delete() {
+        int row = view.getDonorTable().getSelectedRow();
+        if(row == -1) { view.showMessage("Select a donor."); return; }
+        int id = (int) view.getDonorTable().getValueAt(row, 0);
+
+        if(JOptionPane.showConfirmDialog(view, "Delete this donor?", "Confirm", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+            try {
+                if(dao.deleteDonor(id)) { view.showMessage("Deleted!"); view.clearForm(); loadData(); }
+            } catch(SQLException ex) { view.showMessage("Error: " + ex.getMessage()); }
         }
     }
 }

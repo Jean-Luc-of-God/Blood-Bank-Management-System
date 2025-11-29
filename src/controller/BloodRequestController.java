@@ -9,6 +9,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 public class BloodRequestController implements ActionListener {
     private final BloodRequestPage view;
@@ -18,7 +19,7 @@ public class BloodRequestController implements ActionListener {
     public BloodRequestController(BloodRequestPage view, BloodRequestDAO reqDAO) {
         this.view = view;
         this.reqDAO = reqDAO;
-        this.unitDAO = new BloodUnitDAO(); // Needed for fulfillment logic
+        this.unitDAO = new BloodUnitDAO();
 
         view.getSubmitButton().addActionListener(this);
         view.getFulfillButton().addActionListener(this);
@@ -43,15 +44,29 @@ public class BloodRequestController implements ActionListener {
         try {
             String type = view.getSelectedBloodType();
             int qty = Integer.parseInt(view.getQuantity());
+
+            // Get date from Spinner
+            java.util.Date utilDate = view.getRequestDate();
+            LocalDate date = utilDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+
             if(type.equals("--Select--")) { view.showMessage("Select blood type."); return; }
 
-            // Check stock BEFORE submitting
-            if(reqDAO.getTotalStockForType(type) < qty) {
-                view.showMessage("STOCK ERROR: Only " + reqDAO.getTotalStockForType(type) + " units available.");
+            // --- STRICT STOCK CHECK ---
+            int totalStock = reqDAO.getTotalStockForType(type);
+            int pendingStock = reqDAO.getPendingStockForType(type);
+            int realAvailable = totalStock - pendingStock;
+
+            // If we have 10 units, but 8 are pending, we only have 2 real units available.
+            if(qty > realAvailable) {
+                view.showMessage("STOCK ERROR: Insufficient Available Blood!\n" +
+                        "Total In Stock: " + totalStock + "\n" +
+                        "Already Promised (Pending): " + pendingStock + "\n" +
+                        "--------------------------------\n" +
+                        "Actually Available: " + realAvailable);
                 return;
             }
 
-            reqDAO.saveRequest(new BloodRequest(type, qty, LocalDate.parse(view.getRequestDate()), false));
+            reqDAO.saveRequest(new BloodRequest(type, qty, date, false));
             view.showMessage("Saved!"); view.clearForm(); loadData();
         } catch(Exception ex) { view.showMessage("Error: Check inputs."); }
     }
@@ -70,7 +85,7 @@ public class BloodRequestController implements ActionListener {
         int confirm = JOptionPane.showConfirmDialog(view, "Fulfill and remove " + qty + " units from stock?", "Confirm", JOptionPane.YES_NO_OPTION);
         if(confirm == JOptionPane.YES_OPTION) {
             try {
-                // Double check stock
+                // Check physical stock one last time (just in case stock was deleted manually)
                 if(reqDAO.getTotalStockForType(type) < qty) { view.showMessage("Not enough stock remaining."); return; }
 
                 // 1. Remove from stock
@@ -78,18 +93,16 @@ public class BloodRequestController implements ActionListener {
                 // 2. Mark request as done
                 reqDAO.markAsFulfilled(id);
 
-                view.showMessage("Success! Stock Updated."); loadData();
+                view.showMessage("Fulfilled! Stock updated."); loadData();
             } catch(SQLException ex) { view.showMessage(ex.getMessage()); }
         }
     }
 
     private void delete() {
         int r = view.getRequestTable().getSelectedRow();
-        if(r == -1) { view.showMessage("Select a request."); return; }
-
-        int id = (int) view.getRequestTable().getValueAt(r, 0);
-        try {
-            if(reqDAO.deleteRequest(id)) { view.showMessage("Deleted."); loadData(); }
-        } catch(SQLException ex) { view.showMessage(ex.getMessage()); }
+        if(r != -1) {
+            try { reqDAO.deleteRequest((int)view.getRequestTable().getValueAt(r, 0)); loadData(); }
+            catch(SQLException ex) { view.showMessage(ex.getMessage()); }
+        }
     }
 }
