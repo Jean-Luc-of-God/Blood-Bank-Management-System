@@ -1,117 +1,95 @@
 package controller;
 
 import dao.BloodRequestDAO;
+import dao.BloodUnitDAO;
 import model.BloodRequest;
 import view.BloodRequestPage;
-
+import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
-import java.util.List;
 
-/**
- * Controller for handling Blood Requests.
- * ENFORCES BUSINESS RULE: Cannot request more blood than is currently in stock.
- */
 public class BloodRequestController implements ActionListener {
-
     private final BloodRequestPage view;
-    private final BloodRequestDAO dao;
+    private final BloodRequestDAO reqDAO;
+    private final BloodUnitDAO unitDAO;
 
-    public BloodRequestController(BloodRequestPage view, BloodRequestDAO dao) {
+    public BloodRequestController(BloodRequestPage view, BloodRequestDAO reqDAO) {
         this.view = view;
-        this.dao = dao;
+        this.reqDAO = reqDAO;
+        this.unitDAO = new BloodUnitDAO(); // Needed for fulfillment logic
 
-        // Listen to buttons
-        this.view.getSubmitButton().addActionListener(this);
-        this.view.getFulfillButton().addActionListener(this);
-        this.view.getDeleteButton().addActionListener(this);
+        view.getSubmitButton().addActionListener(this);
+        view.getFulfillButton().addActionListener(this);
+        view.getDeleteButton().addActionListener(this);
 
-        // Load data on startup
-        loadRequests();
+        loadData();
+    }
+
+    private void loadData() {
+        try { view.refreshTable(reqDAO.getAllRequests()); }
+        catch (SQLException e) { view.showMessage("Error: " + e.getMessage()); }
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (e.getSource() == view.getSubmitButton()) {
-            handleSubmit();
-        } else if (e.getSource() == view.getFulfillButton()) {
-            view.showMessage("Fulfillment logic coming soon!");
-        } else if (e.getSource() == view.getDeleteButton()) {
-            view.showMessage("Delete logic coming soon!");
-        }
+        if (e.getSource() == view.getSubmitButton()) submit();
+        else if (e.getSource() == view.getFulfillButton()) fulfill();
+        else if (e.getSource() == view.getDeleteButton()) delete();
     }
 
-    private void loadRequests() {
+    private void submit() {
         try {
-            List<BloodRequest> requests = dao.getAllRequests();
-            view.refreshTable(requests);
-        } catch (SQLException e) {
-            view.showMessage("Error loading requests: " + e.getMessage());
-        }
-    }
+            String type = view.getSelectedBloodType();
+            int qty = Integer.parseInt(view.getQuantity());
+            if(type.equals("--Select--")) { view.showMessage("Select blood type."); return; }
 
-    private void handleSubmit() {
-        // 1. Get Form Data
-        String type = view.getSelectedBloodType();
-        String qtyStr = view.getQuantity();
-        String dateStr = view.getRequestDate();
-
-        // 2. Basic Validation
-        if (type.equals("--Select--")) {
-            view.showMessage("Please select a blood type.");
-            return;
-        }
-
-        int quantity;
-        try {
-            quantity = Integer.parseInt(qtyStr);
-            if (quantity <= 0) {
-                view.showMessage("Quantity must be positive.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            view.showMessage("Invalid Quantity.");
-            return;
-        }
-
-        LocalDate reqDate;
-        try {
-            reqDate = LocalDate.parse(dateStr);
-        } catch (DateTimeParseException e) {
-            view.showMessage("Invalid Date. Format: YYYY-MM-DD");
-            return;
-        }
-
-        // 3. --- CRITICAL BUSINESS RULE CHECK ---
-        // "Blood requests cannot exceed available stock."
-        try {
-            int currentStock = dao.getTotalStockForType(type);
-
-            if (quantity > currentStock) {
-                // RULE FAILED: Stop the request
-                view.showMessage("STOCK ERROR: Insufficient blood available!\n" +
-                        "Requested: " + quantity + " units\n" +
-                        "Available (" + type + "): " + currentStock + " units");
+            // Check stock BEFORE submitting
+            if(reqDAO.getTotalStockForType(type) < qty) {
+                view.showMessage("STOCK ERROR: Only " + reqDAO.getTotalStockForType(type) + " units available.");
                 return;
             }
 
-            // 4. If Rule Passed, Save the Request
-            // New requests default to 'fulfilled = false' (Pending)
-            BloodRequest req = new BloodRequest(type, quantity, reqDate, false);
+            reqDAO.saveRequest(new BloodRequest(type, qty, LocalDate.parse(view.getRequestDate()), false));
+            view.showMessage("Saved!"); view.clearForm(); loadData();
+        } catch(Exception ex) { view.showMessage("Error: Check inputs."); }
+    }
 
-            if (dao.saveRequest(req)) {
-                view.showMessage("Request Submitted Successfully!");
-                view.clearForm();
-                loadRequests();
-            } else {
-                view.showMessage("Failed to submit request.");
-            }
+    private void fulfill() {
+        int r = view.getRequestTable().getSelectedRow();
+        if(r == -1) { view.showMessage("Select a request."); return; }
 
-        } catch (SQLException e) {
-            view.showMessage("Database Error during stock check: " + e.getMessage());
+        int id = (int) view.getRequestTable().getValueAt(r, 0);
+        String type = (String) view.getRequestTable().getValueAt(r, 1);
+        int qty = (int) view.getRequestTable().getValueAt(r, 2);
+        String status = (String) view.getRequestTable().getValueAt(r, 4);
+
+        if("Fulfilled".equals(status)) { view.showMessage("Already fulfilled."); return; }
+
+        int confirm = JOptionPane.showConfirmDialog(view, "Fulfill and remove " + qty + " units from stock?", "Confirm", JOptionPane.YES_NO_OPTION);
+        if(confirm == JOptionPane.YES_OPTION) {
+            try {
+                // Double check stock
+                if(reqDAO.getTotalStockForType(type) < qty) { view.showMessage("Not enough stock remaining."); return; }
+
+                // 1. Remove from stock
+                unitDAO.deductStock(type, qty);
+                // 2. Mark request as done
+                reqDAO.markAsFulfilled(id);
+
+                view.showMessage("Success! Stock Updated."); loadData();
+            } catch(SQLException ex) { view.showMessage(ex.getMessage()); }
         }
+    }
+
+    private void delete() {
+        int r = view.getRequestTable().getSelectedRow();
+        if(r == -1) { view.showMessage("Select a request."); return; }
+
+        int id = (int) view.getRequestTable().getValueAt(r, 0);
+        try {
+            if(reqDAO.deleteRequest(id)) { view.showMessage("Deleted."); loadData(); }
+        } catch(SQLException ex) { view.showMessage(ex.getMessage()); }
     }
 }
