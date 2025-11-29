@@ -69,7 +69,7 @@ public class MainDashboard extends JFrame {
 
         add(gridPanel, BorderLayout.CENTER);
 
-        // 3. --- FOOTER ---
+        // 3. --- FOOTER --- ADDED A FOOTER THAT SHOWS THE SYSTEM AS DEVELOPED BY ME! Jean Luc
         JPanel footerPanel = new JPanel();
         footerPanel.setBackground(Color.WHITE);
         footerPanel.add(new JLabel("© 2025 Blood Bank System | Developed by MANISHIMWE Kwizera Jean Luc"));
