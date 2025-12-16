@@ -9,16 +9,17 @@ public class Alert {
     private LocalDate dateGenerated;
     private String status;
 
-    // NEW: Field to hold the blood type name (fetched from DB)
-    private String bloodTypeString;
+    // NEW: Field to hold the blood type string (e.g., "A+") for display
+    private String bloodTypeDetails;
 
     public Alert() {}
 
-    // Updated Constructor to include bloodTypeString
-    public Alert(int alertId, int bloodId, String bloodTypeString, String alertType, LocalDate dateGenerated, String status) {
+    // Updated Constructor to include bloodTypeDetails
+    // Order: ID, BloodID, DETAILS, Type, Date, Status
+    public Alert(int alertId, int bloodId, String bloodTypeDetails, String alertType, LocalDate dateGenerated, String status) {
         this.alertId = alertId;
         this.bloodId = bloodId;
-        this.bloodTypeString = bloodTypeString; // Store it here
+        this.bloodTypeDetails = bloodTypeDetails; // Store it here
         this.alertType = alertType;
         this.dateGenerated = dateGenerated;
         this.status = status;
@@ -39,7 +40,7 @@ public class Alert {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    // Getter for the new field
-    public String getBloodTypeString() { return bloodTypeString; }
-    public void setBloodTypeString(String bloodTypeString) { this.bloodTypeString = bloodTypeString; }
+    // --- THIS IS THE MISSING METHOD YOU NEED ---
+    public String getBloodTypeDetails() { return bloodTypeDetails; }
+    public void setBloodTypeDetails(String bloodTypeDetails) { this.bloodTypeDetails = bloodTypeDetails; }
 }

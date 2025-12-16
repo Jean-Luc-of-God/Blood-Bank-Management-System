@@ -43,23 +43,23 @@ public class AlertDAO {
         }
     }
 
+    // UPDATED: Now fetches Blood Type using JOIN
     public List<Alert> getAllAlerts() throws SQLException {
         List<Alert> list = new ArrayList<>();
-        // NEW SQL: JOIN with BloodUnits to get the blood_type string
+
+        // SQL: Join Alerts with BloodUnits to get the blood_type string
         String sql = "SELECT a.alert_id, a.blood_id, b.blood_type, a.alert_type, a.date_generated, a.status " +
                 "FROM Alerts a " +
                 "JOIN BloodUnits b ON a.blood_id = b.blood_id " +
                 "ORDER BY a.date_generated DESC";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
+             ResultSet rs = conn.createStatement().executeQuery(sql)) {
             while (rs.next()) {
                 list.add(new Alert(
                         rs.getInt("alert_id"),
                         rs.getInt("blood_id"),
-                        rs.getString("blood_type"), // Now we have the real blood type!
+                        rs.getString("blood_type"), // Pass the fetched blood type to Model
                         rs.getString("alert_type"),
                         rs.getDate("date_generated").toLocalDate(),
                         rs.getString("status")

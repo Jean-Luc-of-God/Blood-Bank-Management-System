@@ -51,26 +51,22 @@ public class AlertsPage extends JFrame {
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(LIGHT_BG);
 
+        // SMART IMAGE PANEL (SCALE TO FIT)
         ImagePanel heroImagePanel = new ImagePanel("alerts_image.jpg");
         heroImagePanel.setPreferredSize(new Dimension(100, 200));
         mainPanel.add(heroImagePanel, BorderLayout.NORTH);
 
-        // Updated Columns: Shows 'Blood Type' now!
-        tableModel = new DefaultTableModel(new String[]{"Alert ID", "Blood Type", "Alert Type", "Date", "Status"}, 0) {
-            @Override public boolean isCellEditable(int row, int col) { return false; }
-        };
-
+        tableModel = new DefaultTableModel(new String[]{"ID", "Blood Unit", "Blood Type", "Alert Type", "Date", "Status"}, 0);
         alertsTable = new JTable(tableModel);
         alertsTable.setRowHeight(30);
         alertsTable.getTableHeader().setBackground(DARK_GREY);
         alertsTable.getTableHeader().setForeground(Color.WHITE);
 
-        // Add Color Renderer
         alertsTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                String type = (String) table.getModel().getValueAt(row, 2); // Alert Type column
+                String type = (String) table.getModel().getValueAt(row, 3);
                 if (!isSelected) {
                     if ("Expired".equals(type)) c.setBackground(new Color(255, 200, 200));
                     else if ("Near Expiry".equals(type)) c.setBackground(new Color(255, 255, 200));
@@ -92,26 +88,45 @@ public class AlertsPage extends JFrame {
     public void refreshTable(List<Alert> list) {
         tableModel.setRowCount(0);
         for(Alert a:list) {
-            // Using the new bloodTypeString here
-            tableModel.addRow(new Object[]{a.getAlertId(), a.getBloodTypeString(), a.getAlertType(), a.getDateGenerated(), a.getStatus()});
+            tableModel.addRow(new Object[]{a.getAlertId(), a.getBloodId(), a.getBloodTypeDetails(), a.getAlertType(), a.getDateGenerated(), a.getStatus()});
         }
     }
 
     private JButton createBigButton(String t, Color bg) { JButton b=new JButton(t); b.setFont(new Font("SansSerif",Font.BOLD,12)); b.setBackground(bg); b.setForeground(Color.WHITE); b.setMaximumSize(new Dimension(Integer.MAX_VALUE,45)); b.setAlignmentX(Component.CENTER_ALIGNMENT); return b; }
 
+    // --- SMART IMAGE PANEL (SCALE TO FIT) ---
     private class ImagePanel extends JPanel {
         private Image img;
         public ImagePanel(String p) { try { File f=new File(p); if(f.exists()) img=ImageIO.read(f); } catch(Exception e){} }
         @Override protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             if (img != null) {
-                // Smart Fit Logic
-                double aspect = (double) getWidth() / getHeight();
-                double imgAspect = (double) img.getWidth(null) / img.getHeight(null);
-                int w, h, x, y;
-                if (aspect > imgAspect) { w=getWidth(); h=(int)(getWidth()/imgAspect); x=0; y=0; }
-                else { h=getHeight(); w=(int)(getHeight()*imgAspect); x=(getWidth()-w)/2; y=0; }
-                g.drawImage(img, x, y, w, h, this);
+                // FIXED: Scale to Fit (No Zoom/Crop)
+                int panelW = getWidth();
+                int panelH = getHeight();
+                int imgW = img.getWidth(null);
+                int imgH = img.getHeight(null);
+
+                if (imgW > 0 && imgH > 0) {
+                    double imgAspect = (double) imgW / imgH;
+                    double panelAspect = (double) panelW / panelH;
+                    int drawW, drawH, x, y;
+
+                    if (panelAspect > imgAspect) {
+                        // Panel is flatter than image -> Fit to Height
+                        drawH = panelH;
+                        drawW = (int) (panelH * imgAspect);
+                        y = 0;
+                        x = (panelW - drawW) / 2; // Center horizontally
+                    } else {
+                        // Panel is taller than image -> Fit to Width
+                        drawW = panelW;
+                        drawH = (int) (panelW / imgAspect);
+                        x = 0;
+                        y = (panelH - drawH) / 2; // Center vertically
+                    }
+                    g.drawImage(img, x, y, drawW, drawH, this);
+                }
             } else {
                 g.setColor(new Color(240, 240, 245)); g.fillRect(0,0,getWidth(),getHeight());
                 g.setColor(Color.GRAY); g.drawString("Add 'alerts_image.jpg'", getWidth()/2-70, getHeight()/2);
