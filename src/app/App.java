@@ -4,6 +4,8 @@ import view.MainDashboard;
 
 import javax.swing.SwingUtilities;
 
+// THE RUNNING PAGE OF THE APP
+
 public class App {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
