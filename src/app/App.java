@@ -1,24 +1,23 @@
 package app;
 
-import view.MainDashboard;
+import controller.LoginController;
+import dao.UserDAO;
+import view.LoginPage;
 
 import javax.swing.SwingUtilities;
-
-// THE RUNNING PAGE OF THE APP
 
 public class App {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                // 1. Create the Main Dashboard (The Menu with 4 buttons)
-                MainDashboard dashboard = new MainDashboard();
+                // 1. Create Login MVC
+                UserDAO dao = new UserDAO();
+                LoginPage view = new LoginPage();
+                new LoginController(view, dao);
 
-                // 2. Center it on screen
-                dashboard.setLocationRelativeTo(null);
-
-                // 3. Show it!
-                dashboard.setVisible(true);
+                // 2. Show Login Screen
+                view.setVisible(true);
             }
         });
     }
