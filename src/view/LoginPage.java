@@ -28,13 +28,8 @@ public class LoginPage extends JFrame {
     public LoginPage() {
         setTitle("Blood Bank System - Secure Access");
 
-        // 1. Set the Default "Restored" Size
         setSize(1000, 700);
-
-        // 2. Set the MINIMUM Size (Prevents shrinking too small to see)
         setMinimumSize(new Dimension(900, 650));
-
-        // 3. Start Maximized
         setExtendedState(JFrame.MAXIMIZED_BOTH);
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -92,30 +87,30 @@ public class LoginPage extends JFrame {
         // --- RIGHT SIDE: The "Form" Panel ---
         JPanel formPanel = new JPanel();
         formPanel.setBackground(Color.WHITE);
-        formPanel.setLayout(new GridBagLayout()); // Centers the box
+        formPanel.setLayout(new GridBagLayout()); // Centers the box in the white area
 
         // Fixed-width content box
         JPanel contentBox = new JPanel();
         contentBox.setLayout(new BoxLayout(contentBox, BoxLayout.Y_AXIS));
         contentBox.setBackground(Color.WHITE);
-        contentBox.setPreferredSize(new Dimension(400, 520)); // Ensure this fits in Min Size
+        contentBox.setPreferredSize(new Dimension(400, 550));
 
         // Title
         titleLabel = new JLabel("Welcome Back");
         titleLabel.setFont(HEADER_FONT);
         titleLabel.setForeground(PRIMARY_RED);
-        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT); // Strict Left Align
         contentBox.add(titleLabel);
 
         JLabel subtitle = new JLabel("Please enter your details");
         subtitle.setFont(new Font("SansSerif", Font.PLAIN, 14));
         subtitle.setForeground(TEXT_GRAY);
-        subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        subtitle.setAlignmentX(Component.LEFT_ALIGNMENT); // Strict Left Align
         contentBox.add(subtitle);
 
         contentBox.add(Box.createRigidArea(new Dimension(0, 40)));
 
-        // Inputs
+        // Inputs (Wrapped in Panel for full width)
         contentBox.add(createLabel("Username"));
         usernameField = createField();
         contentBox.add(usernameField);
@@ -132,11 +127,12 @@ public class LoginPage extends JFrame {
         roleComboBox.setFont(new Font("SansSerif", Font.PLAIN, 14));
         roleComboBox.setBackground(Color.WHITE);
         roleComboBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        roleComboBox.setAlignmentX(Component.LEFT_ALIGNMENT); // Strict Left Align
         contentBox.add(roleComboBox);
 
         contentBox.add(Box.createRigidArea(new Dimension(0, 40)));
 
-        // Button
+        // Primary Button (Login/Register)
         actionButton = new JButton("LOGIN");
         actionButton.setFont(new Font("SansSerif", Font.BOLD, 14));
         actionButton.setBackground(PRIMARY_RED);
@@ -145,19 +141,24 @@ public class LoginPage extends JFrame {
         actionButton.setBorderPainted(false);
         actionButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
         actionButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        actionButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        actionButton.setAlignmentX(Component.LEFT_ALIGNMENT); // Strict Left Align
         contentBox.add(actionButton);
 
-        contentBox.add(Box.createRigidArea(new Dimension(0, 20)));
+        contentBox.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        // Link
-        toggleButton = new JButton("New User? Create an Account");
-        toggleButton.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        // Secondary Button (Toggle)
+        toggleButton = new JButton("CREATE AN ACCOUNT");
+        toggleButton.setFont(new Font("SansSerif", Font.BOLD, 12));
+        toggleButton.setBackground(Color.WHITE);
         toggleButton.setForeground(PRIMARY_RED);
-        toggleButton.setContentAreaFilled(false);
-        toggleButton.setBorderPainted(false);
+        toggleButton.setFocusPainted(false);
+        toggleButton.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(PRIMARY_RED, 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        toggleButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
         toggleButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        toggleButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        toggleButton.setAlignmentX(Component.LEFT_ALIGNMENT); // Strict Left Align
         toggleButton.addActionListener(e -> toggleMode());
         contentBox.add(toggleButton);
 
@@ -170,11 +171,11 @@ public class LoginPage extends JFrame {
         if (isLoginMode) {
             titleLabel.setText("Welcome Back");
             actionButton.setText("LOGIN");
-            toggleButton.setText("New User? Create an Account");
+            toggleButton.setText("CREATE AN ACCOUNT");
         } else {
             titleLabel.setText("Create Account");
             actionButton.setText("REGISTER");
-            toggleButton.setText("Already have an account? Login");
+            toggleButton.setText("BACK TO LOGIN");
         }
     }
 
@@ -182,7 +183,7 @@ public class LoginPage extends JFrame {
         JLabel l = new JLabel(text);
         l.setFont(LABEL_FONT);
         l.setForeground(TEXT_GRAY);
-        l.setAlignmentX(Component.LEFT_ALIGNMENT);
+        l.setAlignmentX(Component.LEFT_ALIGNMENT); // Critical for neat line
         return l;
     }
 
@@ -195,6 +196,7 @@ public class LoginPage extends JFrame {
     private void styleField(JTextField t) {
         t.setFont(new Font("SansSerif", Font.PLAIN, 14));
         t.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        t.setAlignmentX(Component.LEFT_ALIGNMENT); // Critical for neat line
         t.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 2, 0, new Color(200, 200, 200)),
                 BorderFactory.createEmptyBorder(5, 5, 5, 5)

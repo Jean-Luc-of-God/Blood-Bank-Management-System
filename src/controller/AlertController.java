@@ -1,74 +1,52 @@
 package controller;
 
 import dao.AlertDAO;
-import model.Alert;
+import model.User;
 import view.AlertsPage;
+import view.MainDashboard;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.SQLException;
-import java.util.List;
 
 public class AlertController implements ActionListener {
-
     private final AlertsPage view;
     private final AlertDAO dao;
+    private final User currentUser;
 
-    public AlertController(AlertsPage view, AlertDAO dao) {
+    public AlertController(AlertsPage view, AlertDAO dao, User user) {
         this.view = view;
         this.dao = dao;
+        this.currentUser = user;
 
-        this.view.getRefreshButton().addActionListener(this);
-        this.view.getDeleteButton().addActionListener(this);
+        view.getRefreshButton().addActionListener(this);
+        view.getDeleteButton().addActionListener(this);
 
-        // AUTO-RUN SCAN ON STARTUP
-        runSystemScan();
+        // BACK BUTTON LOGIC
+        view.getBackButton().addActionListener(e -> {
+            view.dispose();
+            new MainDashboard(currentUser).setVisible(true);
+        });
+
+        scan();
     }
 
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        if (e.getSource() == view.getRefreshButton()) {
-            runSystemScan();
-            view.showMessage("System scan complete. Table updated.");
-        } else if (e.getSource() == view.getDeleteButton()) {
-            handleDelete();
-        }
+    @Override public void actionPerformed(ActionEvent e) {
+        if(e.getSource() == view.getRefreshButton()) { scan(); view.showMessage("Scanned."); }
+        else if(e.getSource() == view.getDeleteButton()) dismiss();
     }
 
-    private void runSystemScan() {
-        try {
-            // 1. Tell DAO to scan DB and generate new alerts
-            dao.checkForNewAlerts();
-
-            // 2. Fetch all alerts to display
-            List<Alert> alerts = dao.getAllAlerts();
-
-            // 3. Update View
-            view.refreshTable(alerts);
-
-        } catch (SQLException e) {
-            view.showMessage("Error scanning for alerts: " + e.getMessage());
-        }
+    private void scan() {
+        try { dao.checkForNewAlerts(); view.refreshTable(dao.getAllAlerts()); }
+        catch (SQLException e) { view.showMessage(e.getMessage()); }
     }
 
-    private void handleDelete() {
-        int selectedRow = view.getAlertsTable().getSelectedRow();
-        if (selectedRow == -1) {
-            view.showMessage("Please select an alert to dismiss.");
-            return;
-        }
-
-        int alertId = (int) view.getAlertsTable().getValueAt(selectedRow, 0);
-
-        try {
-            if (dao.deleteAlert(alertId)) {
-                view.showMessage("Alert dismissed.");
-                runSystemScan();
-            } else {
-                view.showMessage("Failed to dismiss alert.");
-            }
-        } catch (SQLException e) {
-            view.showMessage("Database Error: " + e.getMessage());
-        }
+    private void dismiss() {
+        int r = view.getAlertsTable().getSelectedRow();
+        if(r != -1) {
+            try {
+                if(dao.deleteAlert((int)view.getAlertsTable().getValueAt(r, 0))) { scan(); view.showMessage("Dismissed."); }
+            } catch(SQLException e) { view.showMessage(e.getMessage()); }
+        } else view.showMessage("Select an alert.");
     }
 }

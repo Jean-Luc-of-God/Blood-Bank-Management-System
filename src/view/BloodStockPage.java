@@ -4,12 +4,12 @@ import model.BloodUnit;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import javax.imageio.ImageIO;
-import java.util.Date;
 
 public class BloodStockPage extends JFrame {
 
@@ -21,12 +21,9 @@ public class BloodStockPage extends JFrame {
 
     private JComboBox<String> bloodTypeComboBox;
     private JTextField quantityField;
-    // NEW: Spinners for Dates
-    private JSpinner donationDateSpinner;
-    private JSpinner expiryDateSpinner;
+    private JSpinner donationDateSpinner, expiryDateSpinner;
     private JTextField donorIdField;
-
-    private JButton saveButton, updateButton, deleteButton;
+    private JButton saveButton, updateButton, deleteButton, backButton;
     private JTable stockTable;
     private DefaultTableModel tableModel;
 
@@ -41,10 +38,31 @@ public class BloodStockPage extends JFrame {
         headerPanel.setBackground(PRIMARY_RED);
         headerPanel.setPreferredSize(new Dimension(1200, 80));
         headerPanel.setBorder(new EmptyBorder(0, 30, 0, 30));
-        JLabel titleLabel = new JLabel(" Blood Stock Inventory");
+
+        // --- BACK BUTTON ---
+        backButton = new JButton(" DASHBOARD");
+        backButton.setFont(new Font("SansSerif", Font.BOLD, 12));
+        backButton.setForeground(PRIMARY_RED);
+        backButton.setBackground(Color.WHITE);
+        backButton.setFocusPainted(false);
+        backButton.setIcon(new BackIcon(14, PRIMARY_RED));
+        backButton.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+                BorderFactory.createEmptyBorder(8, 15, 8, 15)
+        ));
+        backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        JPanel btnWrapper = new JPanel(new GridBagLayout());
+        btnWrapper.setOpaque(false);
+        btnWrapper.add(backButton);
+        headerPanel.add(btnWrapper, BorderLayout.WEST);
+
+        JLabel titleLabel = new JLabel("Blood Stock Inventory", SwingConstants.CENTER);
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
         titleLabel.setForeground(Color.WHITE);
-        headerPanel.add(titleLabel, BorderLayout.WEST);
+        headerPanel.add(titleLabel, BorderLayout.CENTER);
+
+        JPanel spacer = new JPanel(); spacer.setOpaque(false); spacer.setPreferredSize(new Dimension(135,10));
+        headerPanel.add(spacer, BorderLayout.EAST);
         add(headerPanel, BorderLayout.NORTH);
 
         JPanel sidebarPanel = new JPanel();
@@ -57,6 +75,7 @@ public class BloodStockPage extends JFrame {
         bloodTypeComboBox = new JComboBox<>(new String[]{"--Select--", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"});
         bloodTypeComboBox.setFont(INPUT_FONT);
         bloodTypeComboBox.setBackground(Color.WHITE);
+        bloodTypeComboBox.setMaximumRowCount(9);
         sidebarPanel.add(new IconInputPanel(new DropIcon(), bloodTypeComboBox));
         sidebarPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
@@ -65,7 +84,6 @@ public class BloodStockPage extends JFrame {
         sidebarPanel.add(new IconInputPanel(new SigmaIcon(), quantityField));
         sidebarPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        // DONATION DATE SPINNER
         sidebarPanel.add(createLabel("Donation Date"));
         donationDateSpinner = new JSpinner(new SpinnerDateModel());
         donationDateSpinner.setEditor(new JSpinner.DateEditor(donationDateSpinner, "yyyy-MM-dd"));
@@ -73,7 +91,6 @@ public class BloodStockPage extends JFrame {
         sidebarPanel.add(new IconInputPanel(new CalendarIcon(), donationDateSpinner));
         sidebarPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        // EXPIRY DATE SPINNER
         sidebarPanel.add(createLabel("Expiry Date"));
         expiryDateSpinner = new JSpinner(new SpinnerDateModel());
         expiryDateSpinner.setEditor(new JSpinner.DateEditor(expiryDateSpinner, "yyyy-MM-dd"));
@@ -81,7 +98,7 @@ public class BloodStockPage extends JFrame {
         sidebarPanel.add(new IconInputPanel(new CalendarIcon(), expiryDateSpinner));
         sidebarPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        sidebarPanel.add(createLabel("Donor ID (Optional)"));
+        sidebarPanel.add(createLabel("Donor ID"));
         donorIdField = createTextField();
         sidebarPanel.add(new IconInputPanel(new UserIcon(), donorIdField));
 
@@ -116,36 +133,23 @@ public class BloodStockPage extends JFrame {
         add(mainPanel, BorderLayout.CENTER);
     }
 
-    // --- UPDATED GETTERS FOR SPINNERS ---
     public JComboBox<String> getBloodTypeComboBox() { return bloodTypeComboBox; }
     public JTextField getQuantityField() { return quantityField; }
     public JTextField getDonorIdField() { return donorIdField; }
-
-    // Get Date Objects directly
     public java.util.Date getDonationDate() { return (java.util.Date) donationDateSpinner.getValue(); }
     public java.util.Date getExpiryDate() { return (java.util.Date) expiryDateSpinner.getValue(); }
-
-    // Setters for populating form
     public void setDonationDate(java.util.Date d) { donationDateSpinner.setValue(d); }
     public void setExpiryDate(java.util.Date d) { expiryDateSpinner.setValue(d); }
-
     public String getSelectedBloodType() { return (String) bloodTypeComboBox.getSelectedItem(); }
     public String getQuantity() { return quantityField.getText(); }
     public String getDonorId() { return donorIdField.getText(); }
-
     public JButton getSaveButton() { return saveButton; }
     public JButton getUpdateButton() { return updateButton; }
     public JButton getDeleteButton() { return deleteButton; }
+    public JButton getBackButton() { return backButton; }
     public JTable getStockTable() { return stockTable; }
-
     public void showMessage(String m) { JOptionPane.showMessageDialog(this, m); }
-    public void clearForm() {
-        bloodTypeComboBox.setSelectedIndex(0);
-        quantityField.setText("");
-        donationDateSpinner.setValue(new Date());
-        expiryDateSpinner.setValue(new Date());
-        donorIdField.setText("");
-    }
+    public void clearForm() { bloodTypeComboBox.setSelectedIndex(0); quantityField.setText(""); donationDateSpinner.setValue(new java.util.Date()); expiryDateSpinner.setValue(new java.util.Date()); donorIdField.setText(""); }
     public void refreshTable(List<BloodUnit> units) { tableModel.setRowCount(0); for (BloodUnit u : units) tableModel.addRow(new Object[]{u.getBloodId(), u.getBloodType(), u.getQuantity(), u.getDonationDate(), u.getExpiryDate(), u.getDonorId()}); }
 
     private JLabel createLabel(String t) { JLabel l=new JLabel(t); l.setFont(new Font("SansSerif",Font.BOLD,12)); l.setForeground(Color.GRAY); l.setAlignmentX(Component.LEFT_ALIGNMENT); return l; }
@@ -153,26 +157,13 @@ public class BloodStockPage extends JFrame {
     private JButton createBigButton(String t, Color bg) { JButton b=new JButton(t); b.setFont(new Font("SansSerif",Font.BOLD,14)); b.setBackground(bg); b.setForeground(Color.WHITE); b.setMaximumSize(new Dimension(Integer.MAX_VALUE,45)); b.setAlignmentX(Component.CENTER_ALIGNMENT); return b; }
 
     private class ImagePanel extends JPanel {
-        private Image img;
-        public ImagePanel(String p) { try { File f=new File(p); if(f.exists()) img=ImageIO.read(f); } catch(Exception e){} }
-        @Override protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            if (img != null) {
-                int panelW = getWidth(); int panelH = getHeight(); int imgW = img.getWidth(null); int imgH = img.getHeight(null);
-                if (imgW > 0 && imgH > 0) {
-                    double imgAspect = (double) imgW / imgH; double panelAspect = (double) panelW / panelH;
-                    int drawW, drawH, x, y;
-                    if (panelAspect > imgAspect) { drawH = panelH; drawW = (int) (panelH * imgAspect); y = 0; x = (panelW - drawW) / 2; }
-                    else { drawW = panelW; drawH = (int) (panelW / imgAspect); x = 0; y = (panelH - drawH) / 2; }
-                    g.drawImage(img, x, y, drawW, drawH, this);
-                }
-            } else { g.setColor(new Color(240, 240, 245)); g.fillRect(0,0,getWidth(),getHeight()); g.setColor(Color.GRAY); g.drawString("Add 'side_image.jpg' to project root", getWidth()/2-100, getHeight()/2); }
-        }
+        private Image img; public ImagePanel(String p) { try { File f=new File(p); if(f.exists()) img=ImageIO.read(f); } catch(Exception e){} }
+        @Override protected void paintComponent(Graphics g) { super.paintComponent(g); if(img!=null) { int w=getWidth(), h=getHeight(), iw=img.getWidth(null), ih=img.getHeight(null); if(iw>0&&ih>0) { double r=(double)iw/ih, pr=(double)w/h; int dw, dh, x, y; if(pr>r) { dh=h; dw=(int)(h*r); x=(w-dw)/2; y=0; } else { dw=w; dh=(int)(w/r); x=0; y=(h-dh)/2; } g.drawImage(img,x,y,dw,dh,this); } } else { g.setColor(new Color(240,240,245)); g.fillRect(0,0,getWidth(),getHeight()); g.setColor(Color.GRAY); g.drawString("Add 'side_image.jpg'", getWidth()/2-80, getHeight()/2); } }
     }
-
     private class IconInputPanel extends JPanel { public IconInputPanel(Icon i, JComponent c) { setLayout(new BorderLayout()); setBackground(Color.WHITE); setBorder(BorderFactory.createLineBorder(new Color(200,200,200))); setMaximumSize(new Dimension(Integer.MAX_VALUE,40)); JLabel l=new JLabel(i); l.setOpaque(true); l.setBackground(ICON_BG); l.setPreferredSize(new Dimension(40,40)); l.setHorizontalAlignment(SwingConstants.CENTER); add(l,BorderLayout.WEST); add(c,BorderLayout.CENTER); } }
     private static class DropIcon implements Icon { public int getIconWidth(){return 20;} public int getIconHeight(){return 20;} public void paintIcon(Component c,Graphics g,int x,int y){ g.setColor(new Color(190,20,20)); g.fillOval(x+5,y+9,10,10); int[] px={x+5,x+15,x+10}; int[] py={y+14,y+14,y+4}; g.fillPolygon(px,py,3); } }
     private static class CalendarIcon implements Icon { public int getIconWidth(){return 20;} public int getIconHeight(){return 20;} public void paintIcon(Component c,Graphics g,int x,int y){ g.setColor(new Color(190,20,20)); g.drawRect(x+3,y+5,14,12); g.fillRect(x+3,y+5,14,3); } }
     private static class UserIcon implements Icon { public int getIconWidth(){return 20;} public int getIconHeight(){return 20;} public void paintIcon(Component c,Graphics g,int x,int y){ g.setColor(new Color(190,20,20)); g.fillOval(x+6,y+4,8,8); g.fillArc(x+4,y+12,12,8,0,180); } }
     private static class SigmaIcon implements Icon { public int getIconWidth(){return 20;} public int getIconHeight(){return 20;} public void paintIcon(Component c,Graphics g,int x,int y){ g.setColor(new Color(190,20,20)); g.drawPolyline(new int[]{x+15,x+5,x+15,x+5,x+15}, new int[]{y+5,y+5,y+10,y+15,y+15}, 5); } }
+    private static class BackIcon implements Icon { int s; Color c; public BackIcon(int s, Color c){this.s=s; this.c=c;} public int getIconWidth(){return s;} public int getIconHeight(){return s;} public void paintIcon(Component cp,Graphics g,int x,int y){ Graphics2D g2=(Graphics2D)g.create(); g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON); g2.translate(x,y); g2.setColor(c); g2.setStroke(new BasicStroke(2)); g2.drawLine(s, s/2, 0, s/2); g2.drawLine(0, s/2, s/2, 0); g2.drawLine(0, s/2, s/2, s); g2.dispose(); } }
 }

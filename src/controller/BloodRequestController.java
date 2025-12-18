@@ -3,7 +3,10 @@ package controller;
 import dao.BloodRequestDAO;
 import dao.BloodUnitDAO;
 import model.BloodRequest;
+import model.User;
 import view.BloodRequestPage;
+import view.MainDashboard;
+
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -15,15 +18,23 @@ public class BloodRequestController implements ActionListener {
     private final BloodRequestPage view;
     private final BloodRequestDAO reqDAO;
     private final BloodUnitDAO unitDAO;
+    private final User currentUser;
 
-    public BloodRequestController(BloodRequestPage view, BloodRequestDAO reqDAO) {
+    public BloodRequestController(BloodRequestPage view, BloodRequestDAO reqDAO, User user) {
         this.view = view;
         this.reqDAO = reqDAO;
+        this.currentUser = user;
         this.unitDAO = new BloodUnitDAO();
 
         view.getSubmitButton().addActionListener(this);
         view.getFulfillButton().addActionListener(this);
         view.getDeleteButton().addActionListener(this);
+
+        // BACK BUTTON LOGIC
+        view.getBackButton().addActionListener(e -> {
+            view.dispose();
+            new MainDashboard(currentUser).setVisible(true);
+        });
 
         loadData();
     }
@@ -44,27 +55,11 @@ public class BloodRequestController implements ActionListener {
         try {
             String type = view.getSelectedBloodType();
             int qty = Integer.parseInt(view.getQuantity());
-
-            // Get date from Spinner
             java.util.Date utilDate = view.getRequestDate();
             LocalDate date = utilDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
 
             if(type.equals("--Select--")) { view.showMessage("Select blood type."); return; }
-
-            // --- STRICT STOCK CHECK ---
-            int totalStock = reqDAO.getTotalStockForType(type);
-            int pendingStock = reqDAO.getPendingStockForType(type);
-            int realAvailable = totalStock - pendingStock;
-
-            // If we have 10 units, but 8 are pending, we only have 2 real units available.
-            if(qty > realAvailable) {
-                view.showMessage("STOCK ERROR: Insufficient Available Blood!\n" +
-                        "Total In Stock: " + totalStock + "\n" +
-                        "Already Promised (Pending): " + pendingStock + "\n" +
-                        "--------------------------------\n" +
-                        "Actually Available: " + realAvailable);
-                return;
-            }
+            if(reqDAO.getTotalStockForType(type) < qty) { view.showMessage("STOCK ERROR: Insufficient stock."); return; }
 
             reqDAO.saveRequest(new BloodRequest(type, qty, date, false));
             view.showMessage("Saved!"); view.clearForm(); loadData();
@@ -80,20 +75,14 @@ public class BloodRequestController implements ActionListener {
         int qty = (int) view.getRequestTable().getValueAt(r, 2);
         String status = (String) view.getRequestTable().getValueAt(r, 4);
 
-        if("Fulfilled".equals(status)) { view.showMessage("Already fulfilled."); return; }
+        if("Fulfilled".equals(status)) { view.showMessage("Already done."); return; }
 
-        int confirm = JOptionPane.showConfirmDialog(view, "Fulfill and remove " + qty + " units from stock?", "Confirm", JOptionPane.YES_NO_OPTION);
-        if(confirm == JOptionPane.YES_OPTION) {
+        if(JOptionPane.showConfirmDialog(view, "Fulfill Request?", "Confirm", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
             try {
-                // Check physical stock one last time (just in case stock was deleted manually)
-                if(reqDAO.getTotalStockForType(type) < qty) { view.showMessage("Not enough stock remaining."); return; }
-
-                // 1. Remove from stock
+                if(reqDAO.getTotalStockForType(type) < qty) { view.showMessage("Not enough stock."); return; }
                 unitDAO.deductStock(type, qty);
-                // 2. Mark request as done
                 reqDAO.markAsFulfilled(id);
-
-                view.showMessage("Fulfilled! Stock updated."); loadData();
+                view.showMessage("Fulfilled!"); loadData();
             } catch(SQLException ex) { view.showMessage(ex.getMessage()); }
         }
     }
