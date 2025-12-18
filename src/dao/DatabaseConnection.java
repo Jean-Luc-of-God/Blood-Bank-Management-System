@@ -26,7 +26,7 @@ public class DatabaseConnection {
      * It follows the format: jdbc:<driver>://<host>:<port>/<database_name>
      * 'blood_bank_db' is the database we created.
      */
-    private static final String DATABASE_URL = "jdbc:mysql://localhost:3306/blood_bank_db";
+    private static final String DATABASE_URL = "jdbc:mysql://localhost:3307/blood_bank_db";
 
     /**
      * The MySQL user we created and gave permissions to.

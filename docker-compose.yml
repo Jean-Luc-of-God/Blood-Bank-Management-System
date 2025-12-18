@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # The Database Service
+  # This container acts as your MySQL server
+  blood-db:
+    image: mysql:8.0
+    container_name: blood_bank_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: blood_bank_db
+      MYSQL_USER: JeanLucJava
+      # IMPORTANT: This password MUST match what is in your DatabaseConnection.java file!
+      MYSQL_PASSWORD: StrongPass123!
+    ports:
+      # Maps port 3306 inside the container to port 3306 on your machine
+      - "3307:3306"
+    volumes:
+      # This mapping ensures your data persists even if the container stops
+      - db_data:/var/lib/mysql
+      # This mapping automatically runs your 'blood_bank_setup.sql' script when the DB starts for the first time
+      - ./blood_bank_setup.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  db_data:
